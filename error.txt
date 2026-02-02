@@ -1,0 +1,50 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. Alle Rechte vorbehalten.
+
+Installieren Sie die neueste PowerShell für neue Funktionen und Verbesserungen! https://aka.ms/PSWindows
+
+In D:\Datein\Skripte\Installation.ps1:140 Zeichen:22
++         Write-Host "[CONFIG] Keine externe Konfiguration gefunden, ve ...
++                      ~
+Arrayindexausdruck fehlt oder ist ungültig.
+In D:\Datein\Skripte\Installation.ps1:232 Zeichen:21
++     Write-Warning "[SECURITY] Keine Credentials-Datei gefunden! Verwe ...
++                     ~
+Arrayindexausdruck fehlt oder ist ungültig.
+In D:\Datein\Skripte\Installation.ps1:568 Zeichen:44
++             [void]$sb.AppendLine(("- {0} | {1} | MAC {2} | IPv4 {3}"  ...
++                                            ~~~
+Ausdrücke sind nur als erstes Element einer Pipeline zulässig.
+In D:\Datein\Skripte\Installation.ps1:735 Zeichen:31
++         Write-Log -Message ("[INFOFILE] TXT geschrieben: {0}" -f $txt ...
++                               ~
+Arrayindexausdruck fehlt oder ist ungültig.
+In D:\Datein\Skripte\Installation.ps1:737 Zeichen:31
++         Write-Log -Message ("[INFOFILE] Konnte TXT nicht schreiben: { ...
++                               ~
+Arrayindexausdruck fehlt oder ist ungültig.
+In D:\Datein\Skripte\Installation.ps1:746 Zeichen:31
++         Write-Log -Message ("[INFOFILE] CSV geschrieben: {0} (+ {1})" ...
++                               ~
+Arrayindexausdruck fehlt oder ist ungültig.
+In D:\Datein\Skripte\Installation.ps1:748 Zeichen:31
++         Write-Log -Message ("[INFOFILE] Konnte CSV nicht schreiben: { ...
++                               ~
+Arrayindexausdruck fehlt oder ist ungültig.
+In D:\Datein\Skripte\Installation.ps1:758 Zeichen:23
++         $src = "$Path.$i"
++                       ~
+Eigenschaftsname fehlt nach dem Verweisoperator.
+In D:\Datein\Skripte\Installation.ps1:850 Zeichen:6
++ using System;
++      ~
+Fehlende using-Direktive
+In D:\Datein\Skripte\Installation.ps1:850 Zeichen:1
++ using System;
++ ~~~~~
+Vor allen anderen Anweisungen in einem Skript muss eine using-Anweisung stehen.
+Es wurden nicht alle Analysefehler berichtet. Korrigieren Sie die berichteten Fehler, und versuchen Sie es erneut.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingArrayIndexExpression
+
+PS D:\Datein\Skripte>
