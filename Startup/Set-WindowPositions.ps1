@@ -1,10 +1,9 @@
 # ============================================================================
 # Startup/Set-WindowPositions.ps1
-# Positioniert Autostart-Programme auf die konfigurierten Monitore
+# Positioniert Autostart-Programme maximiert auf die konfigurierten Monitore
 # ============================================================================
-# Wird nach dem Login ausgefuehrt um weitere Programme (Chrome, Outlook, Teams ...)
-# automatisch auf den richtigen Monitor zu verschieben.
 # Monitor-Zuweisungen in Config.psd1 unter 'AutostartMonitors' konfigurieren.
+# Alle Fenster werden maximiert auf dem Ziel-Monitor dargestellt.
 # ============================================================================
 
 #Requires -Version 5.1
@@ -27,10 +26,10 @@ public class WinAPIPos {
     [DllImport("user32.dll")]
     public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
-    public const uint SWP_NOSIZE     = 0x0001;
-    public const uint SWP_NOZORDER   = 0x0004;
-    public const uint SWP_SHOWWINDOW = 0x0040;
-    public const int  SW_RESTORE     = 9;
+    public const uint SWP_NOSIZE   = 0x0001;
+    public const uint SWP_NOZORDER = 0x0004;
+    public const int  SW_RESTORE   = 9;
+    public const int  SW_MAXIMIZE  = 3;
 }
 '@
 
@@ -75,17 +74,26 @@ foreach ($entry in $Config.AutostartMonitors.GetEnumerator()) {
         $hwnd = $proc.MainWindowHandle
         if ($hwnd -eq [IntPtr]::Zero) { continue }
 
+        # 1. Restore (damit Verschieben wirkt, wenn aktuell maximiert)
         [void][WinAPIPos]::ShowWindow($hwnd, [WinAPIPos]::SW_RESTORE)
+        Start-Sleep -Milliseconds 100
+
+        # 2. Auf Ziel-Monitor verschieben (Groesse unveraendert)
         [void][WinAPIPos]::SetWindowPos(
             $hwnd, [IntPtr]::Zero,
             $screen.Bounds.X, $screen.Bounds.Y,
             0, 0,
-            ([WinAPIPos]::SWP_NOSIZE -bor [WinAPIPos]::SWP_NOZORDER -bor [WinAPIPos]::SWP_SHOWWINDOW)
+            ([WinAPIPos]::SWP_NOSIZE -bor [WinAPIPos]::SWP_NOZORDER)
         )
-        Write-Host "[OK] '$processName' (PID $($proc.Id))  ->  Monitor $monitorIndex  @ ($($screen.Bounds.X), $($screen.Bounds.Y))" -ForegroundColor Green
+        Start-Sleep -Milliseconds 100
+
+        # 3. Maximieren auf dem Ziel-Monitor
+        [void][WinAPIPos]::ShowWindow($hwnd, [WinAPIPos]::SW_MAXIMIZE)
+
+        Write-Host "[OK] '$processName' (PID $($proc.Id))  ->  Monitor $monitorIndex maximiert @ ($($screen.Bounds.X), $($screen.Bounds.Y))" -ForegroundColor Green
         $moved++
     }
 }
 
 Write-Host ''
-Write-Host "Fenster positioniert: $moved  |  Uebersprungen: $missed" -ForegroundColor Cyan
+Write-Host "Fenster maximiert: $moved  |  Uebersprungen: $missed" -ForegroundColor Cyan

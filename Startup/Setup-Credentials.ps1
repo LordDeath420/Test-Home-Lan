@@ -80,40 +80,31 @@ if (-not $credADM) {
     Write-Warning 'Abgebrochen - ADM-Credentials nicht gespeichert.'
 }
 else {
-    # Target = Benutzername, da runas /savedcred genau danach sucht
     Save-CredentialToManager `
-        -Target        $credADM.UserName `
-        -Username      $credADM.UserName `
+        -Target         $credADM.UserName `
+        -Username       $credADM.UserName `
         -SecurePassword $credADM.Password
 }
 
 Write-Host ''
 
 # ============================================================
-# 2. T1-Konto fuer DHCP.msc (runas + DHCP-Snap-In Authentifizierung)
+# 2. T1-Konto fuer DHCP.msc
+# Hinweis: Die doppelte Passwortabfrage der DHCP-Konsole (MMC intern) wird
+# durch runas /savedcred vollstaendig abgefangen - kein zweiter Eintrag noetig.
 # ============================================================
 Write-Host '--- 2/2: T1-Konto (fuer DHCP.msc) ---' -ForegroundColor Cyan
 Write-Host "Benutzername aus Config: $($Config.T1User)"
-Write-Host 'Es werden 2 Eintraege gespeichert: runas-Credential + DHCP-Server-Credential'
-$credT1 = Get-Credential -Message 'T1-Konto eingeben (fuer DHCP.msc - runas UND Snap-In)' -UserName $Config.T1User
+$credT1 = Get-Credential -Message 'T1-Konto eingeben (fuer DHCP.msc via runas)' -UserName $Config.T1User
 
 if (-not $credT1) {
     Write-Warning 'Abgebrochen - T1-Credentials nicht gespeichert.'
 }
 else {
-    # Eintrag 1: fuer runas /savedcred
     Save-CredentialToManager `
-        -Target        $credT1.UserName `
-        -Username      $credT1.UserName `
+        -Target         $credT1.UserName `
+        -Username       $credT1.UserName `
         -SecurePassword $credT1.Password
-
-    # Eintrag 2: fuer DHCP-Snap-In (zweite Passwortabfrage beim Verbinden mit DHCP-Server)
-    if ($Config.DHCPServer) {
-        Save-CredentialToManager `
-            -Target        $Config.DHCPServer `
-            -Username      $credT1.UserName `
-            -SecurePassword $credT1.Password
-    }
 }
 
 Write-Host ''
@@ -127,7 +118,6 @@ Write-Host ''
 Write-Host 'Naechster Schritt - Autostart einrichten:' -ForegroundColor Yellow
 Write-Host '  1. Win+R  ->  shell:startup  ->  Enter' -ForegroundColor White
 Write-Host '  2. Verknuepfung zu Start-AdminTools.vbs in diesen Ordner erstellen' -ForegroundColor White
-Write-Host '  3. Optional: Set-WindowPositions.vbs fuer weitere Autostart-Programme' -ForegroundColor White
 Write-Host ''
 Write-Host 'Test (manuell starten):' -ForegroundColor Yellow
 Write-Host "  powershell -File `"$PSScriptRoot\Start-AdminTools.ps1`"" -ForegroundColor White

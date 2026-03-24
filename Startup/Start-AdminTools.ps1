@@ -1,6 +1,6 @@
 # ============================================================================
 # Startup/Start-AdminTools.ps1
-# Startet AD.msc (als ADM) und DHCP.msc (als T1) auf den richtigen Monitoren
+# Startet AD.msc (als ADM) und DHCP.msc (als T1) maximiert auf dem richtigen Monitor
 # ============================================================================
 # Voraussetzung : Setup-Credentials.ps1 wurde einmalig ausgefuehrt
 # Starten ueber : Start-AdminTools.vbs  (lautlos, kein Konsolenfenster)
@@ -13,7 +13,7 @@ $ErrorActionPreference = 'Continue'
 
 Add-Type -AssemblyName System.Windows.Forms
 
-# Win32-API fuer Fensterpositionierung
+# Win32-API fuer Fensterpositionierung und Maximierung
 Add-Type -TypeDefinition @'
 using System;
 using System.Text;
@@ -31,8 +31,10 @@ public class WinAPI {
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
 
-    public const uint SWP_SHOWWINDOW = 0x0040;
-    public const int  SW_RESTORE     = 9;
+    public const uint SWP_NOSIZE   = 0x0001;
+    public const uint SWP_NOZORDER = 0x0004;
+    public const int  SW_RESTORE   = 9;
+    public const int  SW_MAXIMIZE  = 3;
 }
 '@
 
@@ -68,17 +70,17 @@ function Get-MonitorBounds {
     return ([System.Windows.Forms.Screen]::PrimaryScreen).Bounds
 }
 
-function Wait-AndPositionWindow {
+function Wait-MaximizeWindowOnMonitor {
     <#
     .SYNOPSIS
-        Wartet bis ein mmc.exe-Fenster mit passendem Titel erscheint und positioniert es.
-        Funktioniert auch wenn mmc als anderer Benutzer laeuft (selbe Windows-Session).
+        Wartet bis ein mmc.exe-Fenster mit passendem Titel erscheint,
+        verschiebt es auf den Ziel-Monitor und maximiert es dort.
+        Reihenfolge: restore -> auf Monitor verschieben -> maximieren
+        (Nur so landet das Fenster maximiert auf dem richtigen Monitor.)
     #>
     param(
         [string]$TitleContains,
         [System.Drawing.Rectangle]$Bounds,
-        [int]$Width,
-        [int]$Height,
         [int]$TimeoutSeconds = 30
     )
 
@@ -100,14 +102,23 @@ function Wait-AndPositionWindow {
                 $title = $buf.ToString()
 
                 if ($title -like "*$TitleContains*") {
+                    # 1. Zuerst restore (falls bereits maximiert auf falschem Monitor)
                     [void][WinAPI]::ShowWindow($hwnd, [WinAPI]::SW_RESTORE)
+                    Start-Sleep -Milliseconds 100
+
+                    # 2. Fenster auf Ziel-Monitor verschieben (Groesse unveraendert)
                     [void][WinAPI]::SetWindowPos(
                         $hwnd, [IntPtr]::Zero,
                         $Bounds.X, $Bounds.Y,
-                        $Width, $Height,
-                        [WinAPI]::SWP_SHOWWINDOW
+                        0, 0,
+                        ([WinAPI]::SWP_NOSIZE -bor [WinAPI]::SWP_NOZORDER)
                     )
-                    Write-Host "  [OK] '$title'  ->  Monitor-Position ($($Bounds.X), $($Bounds.Y))" -ForegroundColor Green
+                    Start-Sleep -Milliseconds 100
+
+                    # 3. Auf dem Ziel-Monitor maximieren
+                    [void][WinAPI]::ShowWindow($hwnd, [WinAPI]::SW_MAXIMIZE)
+
+                    Write-Host "  [OK] '$title'  ->  Monitor maximiert @ ($($Bounds.X), $($Bounds.Y))" -ForegroundColor Green
                     return $true
                 }
             }
@@ -151,8 +162,8 @@ if ($adMissing -or $t1Missing) {
 $adBounds   = Get-MonitorBounds -Index $Config.ADMonitor
 $dhcpBounds = Get-MonitorBounds -Index $Config.DHCPMonitor
 
-Write-Host "AD.msc   -> Monitor $($Config.ADMonitor)  @ ($($adBounds.X), $($adBounds.Y))" -ForegroundColor Cyan
-Write-Host "DHCP.msc -> Monitor $($Config.DHCPMonitor)  @ ($($dhcpBounds.X), $($dhcpBounds.Y))" -ForegroundColor Cyan
+Write-Host "AD.msc   -> Monitor $($Config.ADMonitor)  @ ($($adBounds.X), $($adBounds.Y))  [maximiert]" -ForegroundColor Cyan
+Write-Host "DHCP.msc -> Monitor $($Config.DHCPMonitor)  @ ($($dhcpBounds.X), $($dhcpBounds.Y))  [maximiert]" -ForegroundColor Cyan
 Write-Host ''
 
 # ============================================================
@@ -166,34 +177,28 @@ Start-Sleep -Seconds 2
 
 # ============================================================
 # DHCP.msc als T1-Benutzer starten
-# Der DHCP-Server-Credential (zweite Abfrage) ist bereits im Credential Manager
-# unter dem Eintrag '$Config.DHCPServer' hinterlegt (gespeichert durch Setup-Credentials.ps1)
+# Hinweis: Die doppelte Passwortabfrage der DHCP-Konsole (MMC intern) wird
+# durch runas /savedcred vollstaendig abgefangen - kein manuelles Eingreifen noetig.
 # ============================================================
 Write-Host "Starte DHCP.msc als [$($Config.T1User)]..." -ForegroundColor White
 $dhcpArgs = "/savedcred /user:$($Config.T1User) `"mmc.exe `\`"$($Config.DHCPConsolePath)`\`"`""
 Start-Process -FilePath 'runas.exe' -ArgumentList $dhcpArgs
 
 # ============================================================
-# Fenster positionieren
+# Fenster maximiert auf Ziel-Monitor positionieren
 # ============================================================
 Write-Host ''
 Write-Host "Warte $($Config.WindowWaitSeconds)s auf Fenster-Initialisierung..." -ForegroundColor Yellow
 Start-Sleep -Seconds $Config.WindowWaitSeconds
 
-# AD-Konsole (Fenstertitel enthaelt typischerweise 'Active Directory' oder den Konsolennamen)
-Wait-AndPositionWindow `
+Wait-MaximizeWindowOnMonitor `
     -TitleContains  'Active Directory' `
     -Bounds         $adBounds `
-    -Width          $Config.WindowWidth `
-    -Height         $Config.WindowHeight `
     -TimeoutSeconds 20
 
-# DHCP-Konsole
-Wait-AndPositionWindow `
+Wait-MaximizeWindowOnMonitor `
     -TitleContains  'DHCP' `
     -Bounds         $dhcpBounds `
-    -Width          $Config.WindowWidth `
-    -Height         $Config.WindowHeight `
     -TimeoutSeconds 20
 
 Write-Host ''
